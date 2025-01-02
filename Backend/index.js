@@ -4,6 +4,7 @@ const cors = require('cors');
 const app = express();
 const student = require('./db/student.js');
 const admin = require('./db/admin.js');
+const test = require('./db/test.js');
 app.use(express.json());
 app.use(cors());
 //add a new student
@@ -96,6 +97,102 @@ app.post('/addnewadmin', async (req, resp) => {
         resp.status(500).send('Internal Server Error');
     }
 });
+
+// Find students from a specific country
+app.get('/studentsfrom/:country', async (req, res) => {
+    const countryName = req.params.country; // Dynamic country name
+    const studentsFromCountry = await student.aggregate([
+        { $match: { country: countryName } }
+    ]);
+
+    if (studentsFromCountry.length > 0) {
+        res.send(studentsFromCountry);
+    } else {
+        res.status(404).send({ message: `No students found from ${countryName}` });
+    }
+});
+// Add a new test
+app.post('/addnewtest', async (req, resp) => {
+    try {
+        let newTest = new test(req.body);  // Use 'test' model
+        let result = await newTest.save();
+        resp.send(result);
+    } catch (error) {
+        console.error('Error adding new test:', error);
+        resp.status(500).send('Internal Server Error');
+    }
+});
+
+// Get a test by subject code
+app.get('/gettest/:subjectCode', async (req, res) => {
+    try {
+        const subjectCode = req.params.subjectCode;
+        const testData = await test.findOne({ subjectCode: subjectCode });
+        if (testData) {
+            res.status(200).send(testData);
+        } else {
+            res.status(404).send({ message: 'Test not found' });
+        }
+    } catch (error) {
+        console.error('Error retrieving test:', error);
+        res.status(500).send('Internal Server Error');
+    }
+});
+
+// Update a test by subject code
+app.put('/updatetest/:subjectCode', async (req, res) => {
+    try {
+        const subjectCode = req.params.subjectCode;
+        const updates = req.body;
+
+        // Find the test by subject code and update its information
+        const updatedTest = await test.findOneAndUpdate(
+            { subjectCode: subjectCode },  // Filter by subject code
+            { $set: updates },             // Apply updates
+            { new: true }                  // Return the updated document
+        );
+
+        if (updatedTest) {
+            res.status(200).send(updatedTest);
+        } else {
+            res.status(404).send({ message: 'Test not found' });
+        }
+    } catch (error) {
+        console.error('Error updating test:', error);
+        res.status(500).send('Internal Server Error');
+    }
+});
+
+// Delete a test by subject code
+app.delete('/deletetest/:subjectCode', async (req, res) => {
+    try {
+        const subjectCode = req.params.subjectCode;
+
+        const deletedTest = await test.findOneAndDelete({ subjectCode: subjectCode });
+        if (deletedTest) {
+            res.status(200).send({ message: 'Test deleted successfully' });
+        } else {
+            res.status(404).send({ message: 'Test not found' });
+        }
+    } catch (error) {
+        console.error('Error deleting test:', error);
+        res.status(500).send('Internal Server Error');
+    }
+});
+// Fetch all tests
+app.get('/alltests', async (req, res) => {
+    try {
+        // Fetch all tests from the database
+        const tests = await test.find();
+
+        // Return the tests as a JSON response
+        res.status(200).send(tests);
+    } catch (error) {
+        console.error('Error fetching tests:', error);
+        res.status(500).send('Internal Server Error');
+    }
+});
+
 
 
 app.listen(5000);
